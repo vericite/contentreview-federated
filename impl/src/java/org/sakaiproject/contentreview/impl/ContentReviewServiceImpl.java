@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -59,11 +60,18 @@ public class ContentReviewServiceImpl implements ContentReviewService {
 	private static final String PARAM_TOKEN_REQUEST = "tokenRequest";
 	private static final String PARAM_FILE_DATA = "filedata";
 	private static final String PARAM_EXTERNAL_CONTENT_ID = "externalContentId";
+	
+	private static final String ASN1_GRADE_PERM = "asn.grade";
 
 	
 	private String serviceUrl;
 	private String consumer;
 	private String consumerSecret;
+	
+	//Caches token requests for instructors so that we don't have to send a request for every student
+	// ContextId -> Object{token, date}
+	private Map<String, Object[]> instructorSiteTokenCache = new HashMap<String, Object[]>();
+	private static final int CACHE_EXPIRE_MINS = 20;
 	
 	public void init(){
 		serviceUrl = serverConfigurationService.getString("longsightPlagiarism.serviceUrl", "");
@@ -153,7 +161,7 @@ public class ContentReviewServiceImpl implements ContentReviewService {
 
 	public String getReviewReport(String contentId) throws QueueException,
 			ReportException {
-		return getAccessUrl(contentId);
+		return getAccessUrl(contentId, false);
 	}
 
 	public String getReviewReportInstructor(String contentId) throws QueueException,
@@ -161,46 +169,78 @@ public class ContentReviewServiceImpl implements ContentReviewService {
 		/**
 		 * contentId: /attachment/04bad844-493c-45a1-95b4-af70129d54d1/Assignments/b9872422-fb24-4f85-abf5-2fe0e069b251/plag.docx
 		 */
-		return getAccessUrl(contentId);
+		return getAccessUrl(contentId, true);
 	}
 
 	public String getReviewReportStudent(String contentId) throws QueueException,
 			ReportException {
-		return getAccessUrl(contentId);
+		return getAccessUrl(contentId, false);
 	}
 	
-	private String getAccessUrl(String contentId){
+	private String getAccessUrl(String contentId, boolean instructor){
 		String[] contentSplit = contentId.split("/");
 		if(contentSplit.length > 2){
 			String context = contentSplit[2];
 			Map<String, String> params = new HashMap<String, String>();
 			params.put(PARAM_CONSUMER, consumer);
-			params.put(PARAM_CONSUMER_SECRET, consumerSecret);
-			params.put(PARAM_EXTERNAL_CONTENT_ID, contentId);
-			params.put(PARAM_TOKEN_REQUEST, "true");
-			String url = generateUrl(context, null, null);
-			JSONObject results = getResults(url, params);
-			if(results != null){
-				String token = results.getString(PARAM_TOKEN);
-				if(token != null){
-					//we have a request token instead of the secret so that a user can see it
-					params.remove(PARAM_CONSUMER_SECRET);
-					params.put(PARAM_TOKEN, token);
-					//get rid of the request for the token
-					params.remove(PARAM_TOKEN_REQUEST);
-					//now tell the service we want to view the report
-					params.put(PARAM_VIEW_REPORT, "true");
-					String urlParameters = "";
-					if(params != null){
-						for(Entry<String, String> entry : params.entrySet()){
-							if(!"".equals(urlParameters)){
-								urlParameters += "&";
-							}
-							urlParameters += entry.getKey() + "=" + entry.getValue();
-						}
-					}
-					return url + "?" + urlParameters;
+			String token = null;
+			if(instructor){
+				//see if token already exist and isn't expired (we'll expire it after 1 minute so the user has enough time to use the token)
+				if(instructorSiteTokenCache.containsKey(context)){
+					Object[] cacheItem = instructorSiteTokenCache.get(context);
+					Calendar cal = Calendar.getInstance();
+				    cal.setTime(new Date());
+				    //subtract the exipre time (currently set to 20 while the plag token is set to 30, leaving 10 mins in worse case for instructor to use token)
+				    cal.add(Calendar.MINUTE, CACHE_EXPIRE_MINS * -1);
+				    if(((Date) cacheItem[1]).after(cal.getTime())){
+				    	//token hasn't expired, use it
+				    	token = (String) cacheItem[0];
+				    }else{
+				    	//token is expired, remove it
+				    	instructorSiteTokenCache.remove(context);
+				    }
 				}
+			}
+			String url = generateUrl(context, null, null);
+			if(token == null){
+				//token wasn't cached, let's look it up
+				params.put(PARAM_CONSUMER_SECRET, consumerSecret);
+				if(!instructor){
+					//if the user is an instructor then we don't need to worry about specific content ids 
+					//when checking access
+					params.put(PARAM_EXTERNAL_CONTENT_ID, contentId);
+				}
+				params.put(PARAM_TOKEN_REQUEST, "true");
+				JSONObject results = getResults(url, params);
+				if(results != null){
+					token = results.getString(PARAM_TOKEN);
+				}
+			}
+			if(token != null){
+				//if token doesn't already exist in the cache, store it and set the date
+				if(!instructorSiteTokenCache.containsKey(context)){
+					instructorSiteTokenCache.put(context, new Object[]{token, new Date()});
+				}
+				//we have a request token instead of the secret so that a user can see it
+				params.remove(PARAM_CONSUMER_SECRET);
+				params.put(PARAM_TOKEN, token);
+				//get rid of the request for the token
+				params.remove(PARAM_TOKEN_REQUEST);
+				//now tell the service we want to view the report
+				params.put(PARAM_VIEW_REPORT, "true");
+				//since we could have stripped out this parameter for the instructor, put it back 
+				//in so we know what content the user wants to view
+				params.put(PARAM_EXTERNAL_CONTENT_ID, contentId);
+				String urlParameters = "";
+				if(params != null){
+					for(Entry<String, String> entry : params.entrySet()){
+						if(!"".equals(urlParameters)){
+							urlParameters += "&";
+						}
+						urlParameters += entry.getKey() + "=" + entry.getValue();
+					}
+				}
+				return url + "?" + urlParameters;
 			}
 		}
 		
