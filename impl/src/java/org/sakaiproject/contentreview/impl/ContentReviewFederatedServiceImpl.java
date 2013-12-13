@@ -1,33 +1,14 @@
 package org.sakaiproject.contentreview.impl;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.util.ArrayList;
-import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Map.Entry;
 
-import net.sf.json.JSONObject;
-
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpResponse;
-import org.apache.http.NameValuePair;
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.entity.UrlEncodedFormEntity;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.entity.mime.HttpMultipartMode;
-import org.apache.http.entity.mime.MultipartEntityBuilder;
-import org.apache.http.entity.mime.content.ByteArrayBody;
-import org.apache.http.entity.mime.content.ContentBody;
-import org.apache.http.impl.client.HttpClientBuilder;
-import org.apache.http.message.BasicNameValuePair;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.sakaiproject.component.api.ServerConfigurationService;
-import org.sakaiproject.content.api.ContentHostingService;
 import org.sakaiproject.content.api.ContentResource;
 import org.sakaiproject.contentreview.exception.QueueException;
 import org.sakaiproject.contentreview.exception.ReportException;
@@ -35,27 +16,77 @@ import org.sakaiproject.contentreview.exception.SubmissionException;
 import org.sakaiproject.contentreview.exception.TransientSubmissionException;
 import org.sakaiproject.contentreview.model.ContentReviewItem;
 import org.sakaiproject.contentreview.service.ContentReviewService;
-import org.sakaiproject.entity.api.ResourceProperties;
 import org.sakaiproject.site.api.Site;
-import org.sakaiproject.user.api.User;
-import org.sakaiproject.user.api.UserDirectoryService;
-
+import org.sakaiproject.site.api.SiteService;
+import org.sakaiproject.tool.api.ToolManager;
 /* This class is passed a list of providers in the bean as references, it will use the first
  * by default unless overridden by a site property.
  */
 public class ContentReviewFederatedServiceImpl implements ContentReviewService {
 
+    private static Log log = LogFactory.getLog(ContentReviewFederatedServiceImpl.class);
+
 	private ServerConfigurationService serverConfigurationService;
 	private List <ContentReviewService> providers;
-	String defaultProvider;
+	private Map <String,Integer> providersMap;
 	
+	Integer defaultProvider;
+
+	private ToolManager toolManager;
+	private SiteService siteService;
+	
+    public Site getCurrentSite() {
+        Site site = null;
+        try {
+            String context = toolManager.getCurrentPlacement().getContext();
+            site = siteService.getSite( context );
+        } catch (Exception e) {
+            // sakai failed to get us a location so we can assume we are not ins ide the portal
+            site = null;
+        }
+        return site;
+    }
+
 	public void init(){
-		defaultProvider = serverConfigurationService.getString("contentreview.defaultProvider", "0");
+		defaultProvider = serverConfigurationService.getInt("contentreview.defaultProvider", 0);
 	}
 	
+	public SiteService getSiteService() {
+		return siteService;
+	}
+
+	public void setSiteService(SiteService siteService) {
+		this.siteService = siteService;
+	}
+
+	public ToolManager getToolManager() {
+		return toolManager;
+	}
+
+	public void setToolManager(ToolManager toolManager) {
+		this.toolManager = toolManager;
+	}
+
 	public ContentReviewService getSelectedProvider() {
-		if (providers.size() > 0)
-			return providers.get(0);
+		Site currentSite = getCurrentSite();
+		if (log.isDebugEnabled())
+			log.debug("In Location:" + currentSite.getReference());
+		String overrideProvider = null;
+		if (currentSite != null) {
+			overrideProvider = currentSite.getProperties().getProperty("contentreview.provider");
+		}
+		if (providers.size() >= 0) {
+			//Try to get the selected value from the property
+			Integer mapProvider = defaultProvider;
+			if (overrideProvider != null) {
+				mapProvider = providersMap.get(overrideProvider);
+				//Default provider for no lookup in map
+				if (mapProvider == null) {
+					mapProvider = defaultProvider;
+				}
+			}
+			return providers.get(mapProvider);
+		}
 		return null;
 	}
 
@@ -65,6 +96,15 @@ public class ContentReviewFederatedServiceImpl implements ContentReviewService {
 
 	public void setProviders(List <ContentReviewService> providers) {
 		this.providers = providers;
+		providersMap = new HashMap <String,Integer> ();
+		if (log.isDebugEnabled())
+			log.debug("Providers registered count:" + providers.size());
+		for (int i = 0; i < providers.size(); i++) {
+			ContentReviewService p = providers.get(i);
+			if (log.isDebugEnabled())
+				log.debug("Provider class " + i + " registered as: " + p.getServiceName());
+			providersMap.put(p.getServiceName(), i);
+		}
 	}
 
 	public ServerConfigurationService getServerConfigurationService() {
@@ -100,7 +140,6 @@ public class ContentReviewFederatedServiceImpl implements ContentReviewService {
 	public List<ContentReviewItem> getAllContentReviewItems(String arg0,
 			String arg1) throws QueueException, SubmissionException,
 			ReportException {
-		// TODO Auto-generated method stub
 		ContentReviewService provider = getSelectedProvider();
 		if (provider != null)
 			return provider.getAllContentReviewItems(arg0,arg1);
@@ -109,8 +148,6 @@ public class ContentReviewFederatedServiceImpl implements ContentReviewService {
 
 	public Map getAssignment(String arg0, String arg1)
 			throws SubmissionException, TransientSubmissionException {
-
-		// TODO Auto-generated method stub
 		ContentReviewService provider = getSelectedProvider();
 		if (provider != null)
 			return provider.getAssignment(arg0,arg1);
@@ -118,7 +155,6 @@ public class ContentReviewFederatedServiceImpl implements ContentReviewService {
 	}
 
 	public Date getDateQueued(String arg0) throws QueueException {
-		// TODO Auto-generated method stub
 		ContentReviewService provider = getSelectedProvider();
 		if (provider != null)
 			return provider.getDateQueued(arg0);
@@ -127,7 +163,6 @@ public class ContentReviewFederatedServiceImpl implements ContentReviewService {
 
 	public Date getDateSubmitted(String arg0) throws QueueException,
 			SubmissionException {
-		// TODO Auto-generated method stub
 		ContentReviewService provider = getSelectedProvider();
 		if (provider != null)
 			return provider.getDateSubmitted(arg0);
@@ -142,7 +177,6 @@ public class ContentReviewFederatedServiceImpl implements ContentReviewService {
 	}
 
 	public String getLocalizedStatusMessage(String arg0) {
-		// TODO Auto-generated method stub
 		ContentReviewService provider = getSelectedProvider();
 		if (provider != null)
 			return provider.getLocalizedStatusMessage(arg0);
@@ -150,7 +184,6 @@ public class ContentReviewFederatedServiceImpl implements ContentReviewService {
 	}
 
 	public String getLocalizedStatusMessage(String arg0, String arg1) {
-		// TODO Auto-generated method stub
 		ContentReviewService provider = getSelectedProvider();
 		if (provider != null)
 			return provider.getLocalizedStatusMessage(arg0,arg1);
@@ -158,7 +191,6 @@ public class ContentReviewFederatedServiceImpl implements ContentReviewService {
 	}
 
 	public String getLocalizedStatusMessage(String arg0, Locale arg1) {
-		// TODO Auto-generated method stub
 		ContentReviewService provider = getSelectedProvider();
 		if (provider != null)
 			return provider.getLocalizedStatusMessage(arg0,arg1);
@@ -207,7 +239,6 @@ public class ContentReviewFederatedServiceImpl implements ContentReviewService {
 	}
 	
 	public Long getReviewStatus(String contentId) throws QueueException {
-		//dont worry about implementing this, our status is always ready
 		ContentReviewService provider = getSelectedProvider();
 		if (provider != null)
 			return provider.getReviewStatus(contentId);
@@ -236,7 +267,6 @@ public class ContentReviewFederatedServiceImpl implements ContentReviewService {
 	}
 
 	public void processQueue() {
-		// TODO Auto-generated method stub
 		ContentReviewService provider = getSelectedProvider();
 		if (provider != null)
 			provider.processQueue();
@@ -250,14 +280,12 @@ public class ContentReviewFederatedServiceImpl implements ContentReviewService {
 	}
 
 	public void removeFromQueue(String arg0) {
-		// TODO Auto-generated method stub
 		ContentReviewService provider = getSelectedProvider();
 		if (provider != null)
 			provider.removeFromQueue(arg0);
 	}
 
 	public void resetUserDetailsLockedItems(String arg0) {
-		// TODO Auto-generated method stub
 		ContentReviewService provider = getSelectedProvider();
 		if (provider != null)
 			provider.resetUserDetailsLockedItems(arg0);
@@ -273,7 +301,6 @@ public class ContentReviewFederatedServiceImpl implements ContentReviewService {
 	@Override
 	public int getReviewScore(String arg0) throws QueueException,
 			ReportException, Exception {
-		// TODO Auto-generated method stub
 		ContentReviewService provider = getSelectedProvider();
 		if (provider != null)
 			return provider.getReviewScore(arg0);

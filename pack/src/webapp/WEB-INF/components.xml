@@ -5,16 +5,19 @@
 
 	<bean
 		id="org.sakaiproject.contentreview.service.ContentReviewService"
-		class="org.sakaiproject.contentreview.impl.ContentReviewServiceImpl"
+		class="org.sakaiproject.contentreview.impl.ContentReviewFederatedServiceImpl"
 		init-method="init">
-		 <property name="serverConfigurationService" ref="org.sakaiproject.component.api.ServerConfigurationService" />
-		 <property name="userDirectoryService" ref="org.sakaiproject.user.api.UserDirectoryService" />
-		 <property name="contentHostingService" ref="org.sakaiproject.content.api.ContentHostingService"/>
-	</bean>
+		<property name="providers">
+			<list>
+				<ref bean="org.sakaiproject.contentreview.service.mock.ContentReviewService1" />
+	            <ref bean="org.sakaiproject.contentreview.service.mock.ContentReviewService2" />   
+			</list>
+		</property>
 
-	<bean
-		id="org.sakaiproject.contentreview.service.ContentReviewSiteAdvisor"
-		class="org.sakaiproject.contentreview.impl.DefaultSiteAdvisor">
+		<property name="siteService" ref="org.sakaiproject.site.api.SiteService"/>
+		<property name="toolManager" ref="org.sakaiproject.tool.api.ToolManager"/>
+		<property name="serverConfigurationService" ref="org.sakaiproject.component.api.ServerConfigurationService" />
+
 	</bean>
 
 </beans>
