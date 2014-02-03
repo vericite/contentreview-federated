@@ -306,4 +306,12 @@ public class ContentReviewFederatedServiceImpl implements ContentReviewService {
 			return provider.getReviewScore(arg0);
 		return 0;
 	}
+
+	public int getReviewScore(String contentId, String assignmentRef, String userId) throws QueueException,
+                        ReportException, Exception {
+		ContentReviewService provider = getSelectedProvider();
+                if (provider != null)
+                        return provider.getReviewScore(contentId, assignmentRef, userId);
+                return 0;
+	}
 }
