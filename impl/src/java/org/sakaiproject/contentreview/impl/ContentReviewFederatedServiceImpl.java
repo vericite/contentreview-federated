@@ -214,27 +214,27 @@ public class ContentReviewFederatedServiceImpl implements ContentReviewService {
 		return null;
 	}
 
-	public String getReviewReport(String contentId) throws QueueException,
+	public String getReviewReport(String contentId, String assignmentRef) throws QueueException,
 			ReportException {
 		ContentReviewService provider = getSelectedProvider();
 		if (provider != null)
-			return provider.getReviewReport(contentId);
+			return provider.getReviewReport(contentId, assignmentRef);
 		return null;
 	}
 
-	public String getReviewReportInstructor(String contentId) throws QueueException,
+	public String getReviewReportInstructor(String contentId, String assignmentRef) throws QueueException,
 			ReportException {
 		ContentReviewService provider = getSelectedProvider();
 		if (provider != null)
-			return provider.getReviewReportInstructor(contentId);
+			return provider.getReviewReportInstructor(contentId, assignmentRef);
 		return null;
 	}
 
-	public String getReviewReportStudent(String contentId) throws QueueException,
+	public String getReviewReportStudent(String contentId, String assignmentRef) throws QueueException,
 			ReportException {
 		ContentReviewService provider = getSelectedProvider();
 		if (provider != null)
-			return provider.getReviewReportStudent(contentId);
+			return provider.getReviewReportStudent(contentId, assignmentRef);
 		return null;
 	}
 	
@@ -314,4 +314,26 @@ public class ContentReviewFederatedServiceImpl implements ContentReviewService {
                         return provider.getReviewScore(contentId, assignmentRef, userId);
                 return 0;
 	}
+
+        public void queueInlineText(String userId, String siteId, String assignmentReference, String inlineText, long submissionTime) throws QueueException{
+		ContentReviewService provider = getSelectedProvider();
+                if (provider != null)
+                        provider.queueInlineText(userId, siteId, assignmentReference, inlineText, submissionTime);
+        }
+
+	public String getInlineTextId(String assignmentReference, String userId, long submissionTime){
+		ContentReviewService provider = getSelectedProvider();
+                if (provider != null)
+                        return provider.getInlineTextId(assignmentReference, userId, submissionTime);
+                return "";
+	}
+	
+	public boolean acceptInlineAndAllAttachments(){
+		ContentReviewService provider = getSelectedProvider();
+                if (provider != null)
+                        return provider.acceptInlineAndAllAttachments();
+                return false;
+	}
+
+
 }
