@@ -272,11 +272,10 @@ public class ContentReviewFederatedServiceImpl implements ContentReviewService {
 			provider.processQueue();
 	}
 
-	public void queueContent(String userId, String siteId, String assignmentReference, String contentId)
-			throws QueueException {
+	public void queueContent(String userId, String siteId, String assignmentReference, List<String> contentIds, String inlineText, long submissionTime) throws QueueException{
 		ContentReviewService provider = getSelectedProvider();
 		if (provider != null)
-			provider.queueContent(userId,siteId,assignmentReference,contentId);
+			provider.queueContent(userId,siteId,assignmentReference,contentIds, inlineText, submissionTime);
 	}
 
 	public void removeFromQueue(String arg0) {
@@ -315,12 +314,6 @@ public class ContentReviewFederatedServiceImpl implements ContentReviewService {
                 return 0;
 	}
 
-        public void queueInlineText(String userId, String siteId, String assignmentReference, String inlineText, long submissionTime) throws QueueException{
-		ContentReviewService provider = getSelectedProvider();
-                if (provider != null)
-                        provider.queueInlineText(userId, siteId, assignmentReference, inlineText, submissionTime);
-        }
-
 	public String getInlineTextId(String assignmentReference, String userId, long submissionTime){
 		ContentReviewService provider = getSelectedProvider();
                 if (provider != null)
@@ -328,10 +321,10 @@ public class ContentReviewFederatedServiceImpl implements ContentReviewService {
                 return "";
 	}
 	
-	public boolean acceptInlineAndAllAttachments(){
+	public boolean acceptInlineAndMultipleAttachments(){
 		ContentReviewService provider = getSelectedProvider();
                 if (provider != null)
-                        return provider.acceptInlineAndAllAttachments();
+                        return provider.acceptInlineAndMultipleAttachments();
                 return false;
 	}
 
