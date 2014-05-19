@@ -1,0 +1,13 @@
+diff --git a/pom.xml b/pom.xml
+index 1fe48e1..c1898f2 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -10,7 +10,7 @@
+     <parent>
+         <groupId>org.sakaiproject</groupId>
+         <artifactId>master</artifactId>
+-        <version>11-SNAPSHOT</version>
++        <version>10-SNAPSHOT</version>
+         <relativePath>../master/pom.xml</relativePath>
+     </parent>
+ 
