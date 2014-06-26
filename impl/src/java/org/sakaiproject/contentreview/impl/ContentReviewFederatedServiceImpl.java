@@ -75,7 +75,7 @@ public class ContentReviewFederatedServiceImpl implements ContentReviewService {
 		if (currentSite != null) {
 			overrideProvider = currentSite.getProperties().getProperty("contentreview.provider");
 		}
-		if (providers.size() >= 0) {
+		if (providers.size() > 0) {
 			//Try to get the selected value from the property
 			Integer mapProvider = defaultProvider;
 			if (overrideProvider != null) {
