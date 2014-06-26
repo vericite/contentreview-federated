@@ -272,10 +272,10 @@ public class ContentReviewFederatedServiceImpl implements ContentReviewService {
 			provider.processQueue();
 	}
 
-	public void queueContent(String userId, String siteId, String assignmentReference, List<String> contentIds, String inlineText, long submissionTime) throws QueueException{
+	public void queueContent(String userId, String siteId, String assignmentReference, List<ContentResource> content) throws QueueException{
 		ContentReviewService provider = getSelectedProvider();
 		if (provider != null)
-			provider.queueContent(userId,siteId,assignmentReference,contentIds, inlineText, submissionTime);
+			provider.queueContent(userId,siteId,assignmentReference,content);
 	}
 
 	public void removeFromQueue(String arg0) {
@@ -297,15 +297,6 @@ public class ContentReviewFederatedServiceImpl implements ContentReviewService {
 		return null;
 	}
 
-	@Override
-	public int getReviewScore(String arg0) throws QueueException,
-			ReportException, Exception {
-		ContentReviewService provider = getSelectedProvider();
-		if (provider != null)
-			return provider.getReviewScore(arg0);
-		return 0;
-	}
-
 	public int getReviewScore(String contentId, String assignmentRef, String userId) throws QueueException,
                         ReportException, Exception {
 		ContentReviewService provider = getSelectedProvider();
@@ -313,20 +304,5 @@ public class ContentReviewFederatedServiceImpl implements ContentReviewService {
                         return provider.getReviewScore(contentId, assignmentRef, userId);
                 return 0;
 	}
-
-	public String getInlineTextId(String assignmentReference, String userId, long submissionTime){
-		ContentReviewService provider = getSelectedProvider();
-                if (provider != null)
-                        return provider.getInlineTextId(assignmentReference, userId, submissionTime);
-                return "";
-	}
-	
-	public boolean acceptInlineAndMultipleAttachments(){
-		ContentReviewService provider = getSelectedProvider();
-                if (provider != null)
-                        return provider.acceptInlineAndMultipleAttachments();
-                return false;
-	}
-
 
 }
