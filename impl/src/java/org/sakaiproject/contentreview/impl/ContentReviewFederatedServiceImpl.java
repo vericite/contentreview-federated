@@ -79,7 +79,7 @@ public class ContentReviewFederatedServiceImpl implements ContentReviewService {
 			//Try to get the selected value from the property
 			Integer mapProvider = defaultProvider;
 			if (overrideProvider != null) {
-				mapProvider = providersMap.get(overrideProvider);
+				mapProvider = providersMap.get(overrideProvider.toLowerCase());
 				//Default provider for no lookup in map
 				if (mapProvider == null) {
 					mapProvider = defaultProvider;
@@ -103,7 +103,7 @@ public class ContentReviewFederatedServiceImpl implements ContentReviewService {
 			ContentReviewService p = providers.get(i);
 			if (log.isDebugEnabled())
 				log.debug("Provider class " + i + " registered as: " + p.getServiceName());
-			providersMap.put(p.getServiceName(), i);
+			providersMap.put(p.getServiceName().toLowerCase(), i);
 		}
 	}
 
